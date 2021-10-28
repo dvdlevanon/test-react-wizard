@@ -58,7 +58,9 @@ class Section extends React.Component {
   render() {
     return (
       <li>
-        { this.props.isChecked ? "V": "" } { this.props.section.name }
+        <span onClick={this.sectionClicked.bind(this)}>
+          { this.props.isChecked ? "V": "" } { this.props.section.name }
+        </span>
         <ol>
           {this.props.section.steps.map((step, i) => 
             <Step 
@@ -75,17 +77,13 @@ class Section extends React.Component {
   stepClicked(stepIndex) {
     this.props.stepClicked(this.props.index, stepIndex)
   }
+  
+  sectionClicked() {
+    this.props.stepClicked(this.props.index, 0)
+  }
 }
 
 class Sidebar extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      selectedSection: -1,
-      selectedStep: -1
-    }
-  }
-  
   render() {
     return (
       <div>
@@ -96,20 +94,12 @@ class Sidebar extends React.Component {
               key={i} 
               index={i}
               section={section} 
-              isChecked={ i === this.state.selectedSection }
-              selectedStep={ this.state.selectedStep }
-              stepClicked={this.stepClicked.bind(this)} />)}
+              isChecked={ i === this.props.selectedSection }
+              selectedStep={ this.props.selectedStep }
+              stepClicked={this.props.stepClicked} />)}
         </ol>
       </div>
     )
-  }
-  
-  stepClicked(sectionIndex, stepIndex) {
-    this.setState(prev => ({
-      selectedSection: sectionIndex,
-      selectedStep: stepIndex
-    }))
-    this.props.selectedStepChanged(sectionIndex, stepIndex)
   }
 }
 
@@ -117,14 +107,14 @@ class Content extends React.Component {
   render() {
     let valueComponent = ""
     
-    if (this.props.step.type == "number") {
+    if (this.props.step.type === "number") {
       valueComponent = (<input type="number"></input>)
-    } else if (this.props.step.type == "string") {
+    } else if (this.props.step.type === "string") {
       valueComponent = (<input placeholder="enter a string"></input>)
-    } else if (this.props.step.type == "multi") {
+    } else if (this.props.step.type === "multi") {
       valueComponent = (
         <select>
-          {this.props.step.values.map((val, i) => <option value={val}>{val}</option>)}
+          {this.props.step.values.map((val, i) => <option key={i} value={val}>{val}</option>)}
         </select>
       )
     }
@@ -142,31 +132,59 @@ class Wizard extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      step: null
+      selectedSection: 0,
+      selectedStep: 0
     }
   }
   
   render() {
-    let stepContent = ""
+    let section = this.props.wizard.sections[this.state.selectedSection]
+    let step = section.steps[this.state.selectedStep]
     
-    if (this.state.step != null) {
-      stepContent = <Content step={this.state.step} />
-    }
+    let isLastSection = this.state.selectedSection === this.props.wizard.sections.length - 1
+    let isLastStep = this.state.selectedStep === section.steps.length - 1
+    
+    let stepContent = <Content step={step} />
     
     return (
       <div>
         <Sidebar
           wizard={this.props.wizard} 
-          selectedStepChanged={this.selectedStepChanged.bind(this)}/>
+          selectedSection={ this.state.selectedSection }
+          selectedStep={ this.state.selectedStep }
+          stepClicked={this.stepClicked.bind(this)}/>
         {stepContent}
+        <button disabled={isLastSection && isLastStep} onClick={this.nextClicked.bind(this)}>Next</button>
       </div>
     )
   }
   
-  selectedStepChanged(sectionIndex, stepIndex) {
+  stepClicked(sectionIndex, stepIndex) {
     this.setState(prev => ({
-      step: this.props.wizard.sections[sectionIndex].steps[stepIndex]
+      selectedSection: sectionIndex,
+      selectedStep: stepIndex
     }))
+  }
+  
+  nextClicked() {
+    let wizard = this.props.wizard
+    
+    this.setState(prev => {
+      let section = wizard.sections[prev.selectedSection]
+      let isLastStep = prev.selectedStep === section.steps.length - 1
+      
+      if (isLastStep) {
+        return {
+          selectedSection: prev.selectedSection + 1,
+          selectedStep: 0
+        }
+      } else {
+        return {
+          selectedSection: prev.selectedSection,
+          selectedStep: prev.selectedStep + 1
+        }
+      }
+    })
   }
 }
 
@@ -175,7 +193,6 @@ function App() {
   
   return (
     <div className="App">
-    
       <Wizard wizard={wizard} />
     </div>
   );
